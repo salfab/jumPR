@@ -9,8 +9,16 @@ chrome.storage.local.get(safeRepoName, function (result) {
 chrome.extension.sendMessage({}, function (response) {
 	var readyStateCheckInterval = setInterval(function () {
 		if (document.readyState === "complete") {
-			document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
 
+
+
+			document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
+			const sidebarGroups = document.querySelectorAll('.aui-sidebar-group');
+			const lastGroup = sidebarGroups[sidebarGroups.length - 1];
+			const configSetBasePath = document.createElement('div');
+			configSetBasePath.innerHTML = `<div class="aui-sidebar-group aui-sidebar-group-tier-one sidebar-settings-group"><div class="aui-nav-heading"></div><ul class="aui-nav" resolved=""><li class=" aui-sidebar-settings-button"><a href="#" class="aui-nav-item ">🦄<span class="aui-nav-item-label">Reset jumPR base path for local repo</span></a></li></ul></div>`;
+			configSetBasePath.onclick = onLinkClick;
+			lastGroup.after(configSetBasePath);
 			clearInterval(readyStateCheckInterval);
 
 			// ----------------------------------------------------------
@@ -78,11 +86,21 @@ function nodeInsertedCallback(event) {
 };
 
 function onLinkClick(e) {
-		e.preventDefault();
-		basePath = prompt("enter local base path for repo:", repoName);
+	e.preventDefault();
+	const basePathCandidate = prompt(`enter local base path for repo:\r\n${repoName}`, basePath);
+	if (!!basePathCandidate) {
 		const repoConfig = {};
-		repoConfig[safeRepoName] = basePath;
+		repoConfig[safeRepoName] = basePathCandidate;
 		chrome.storage.local.set(repoConfig, function () {
-			// console.log('base path is set to ' + value);
+			const existingLinks = document.querySelectorAll(`[data-linkFor]`);
+			document.removeEventListener('DOMNodeInserted', nodeInsertedCallback)
+			for (let index = 0; index < existingLinks.length; index++) {
+				const link = existingLinks[index];
+				link.parentNode.removeChild(link);
+			}
+			document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
+			basePath = basePathCandidate;
+			nodeInsertedCallback();
 		});
+	}
 }
