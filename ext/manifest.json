@@ -23,7 +23,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.google.com/*"
+        "https://git.vaudoise.ch/projects/PORT/repos/portail/pull-requests/*"
       ],
       "js": [
         "src/inject/inject.js"
