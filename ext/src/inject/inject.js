@@ -1,3 +1,5 @@
+const regexRepo = /(?<repo>^https.+)\/pull-requests/gm;
+const regexLine = /#(?<file>.+)\?t=(?<line>[\d]+)/gm;
 let basePath = '';
 let repoName = getRepo(document.URL);
 const safeRepoName = repoName.replaceAll('/', '_').replaceAll(':', '_').replaceAll('.', '_');
@@ -31,9 +33,13 @@ chrome.extension.sendMessage({}, function (response) {
 });
 
 function getRepo(uri) {
-	const regex = /(?<repo>^https.+)\/pull-requests/gm;
-	const matches = regex.exec(uri);
+	const matches = regexRepo.exec(uri);
 	return matches.groups.repo;
+}
+
+function parseFileAndLine(uri) {
+	const matches = regexLine.exec(uri);
+	return { file: matches.groups.file, line: matches.groups.line };
 }
 
 function nodeInsertedCallback(event) {
@@ -43,13 +49,13 @@ function nodeInsertedCallback(event) {
 	const fileBreadcrumbs = document.querySelectorAll('a.file-breadcrumbs-segment-highlighted');
 	for (let index = 0; index < fileBreadcrumbs.length; index++) {
 		const element = fileBreadcrumbs[index];
-		const filePath = `/${element.hash.slice(1, element.hash.indexOf('?') + 1)}`;
 
 		const existingLink = document.querySelector(`[data-linkFor='${element.href}']`);
 		if (!existingLink) {
+			const fileAndLine = parseFileAndLine(element.href);
 			const openInVsCodeNode = document.createElement('a');
 			openInVsCodeNode.setAttribute('data-linkFor', element.href)
-			openInVsCodeNode.href = `vscode://file/${basePath}${filePath}`;
+			openInVsCodeNode.href = `vscode://file/${basePath}${fileAndLine.file}:${fileAndLine.line}:0`;
 			openInVsCodeNode.textContent = 'open in vscode';
 			openInVsCodeNode.style = 'margin-left: 10px;';
 			element.after(openInVsCodeNode);
@@ -61,16 +67,16 @@ function nodeInsertedCallback(event) {
 	for (let index = 0; index < spanFileBreadcrumbs.length; index++) {
 		const element = spanFileBreadcrumbs[index];
 		const baseUri = new URL(element.baseURI);
-		const filePath = `/${baseUri.hash.slice(1)}`;
 
 		const existingLink = document.querySelector(`[data-linkFor='${baseUri}']`);
 		if (!existingLink) {
+			const fileAndLine = parseFileAndLine(baseUri.hash);
 			const openInVsCodeNode = document.createElement('a');
 			openInVsCodeNode.setAttribute('data-linkFor', baseUri)
 			if (!basePath || basePath == '') {
 				openInVsCodeNode.addEventListener('click', onLinkClick, false);
 			}
-			openInVsCodeNode.href = `vscode://file/${basePath}${filePath}`;
+			openInVsCodeNode.href = `vscode://file/${basePath}/${fileAndLine.file}:${fileAndLine.line}:0`;
 
 			openInVsCodeNode.textContent = 'open in vscode';
 			openInVsCodeNode.style = 'margin-left: 10px;';
