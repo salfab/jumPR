@@ -1,5 +1,5 @@
 const regexRepo = /(?<repo>^https.+)\/pull-requests/gm;
-const regexLine = /#(?<file>.+)\?t=(?<line>[\d]+)/gm;
+const regexLine = /#(?<file>[^?]+)(\?t=)*(?<line>[\d]+)*/gm
 let basePath = '';
 let repoName = getRepo(document.URL);
 const safeRepoName = repoName.replaceAll('/', '_').replaceAll(':', '_').replaceAll('.', '_');
@@ -22,12 +22,6 @@ chrome.extension.sendMessage({}, function (response) {
 			configSetBasePath.onclick = onLinkClick;
 			lastGroup.after(configSetBasePath);
 			clearInterval(readyStateCheckInterval);
-
-			// ----------------------------------------------------------
-			// This part of the script triggers when page is done loading
-			console.log("Hello. This message was sent from scripts/inject.js");
-			// ----------------------------------------------------------
-
 		}
 	}, 10);
 });
@@ -38,8 +32,9 @@ function getRepo(uri) {
 }
 
 function parseFileAndLine(uri) {
+	regexLine.lastIndex = 0;
 	const matches = regexLine.exec(uri);
-	return { file: matches.groups.file, line: matches.groups.line };
+	return { file: matches.groups.file, line: matches.groups.line || 0 };
 }
 
 function nodeInsertedCallback(event) {
@@ -59,7 +54,6 @@ function nodeInsertedCallback(event) {
 			openInVsCodeNode.textContent = 'open in vscode';
 			openInVsCodeNode.style = 'margin-left: 10px;';
 			element.after(openInVsCodeNode);
-			console.log(filePath);
 		}
 
 	}
@@ -82,9 +76,6 @@ function nodeInsertedCallback(event) {
 			openInVsCodeNode.style = 'margin-left: 10px;';
 			element.after(openInVsCodeNode);
 		}
-
-		console.log(filePath);
-
 	}
 	console.log("...Listing over.");
 	document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
