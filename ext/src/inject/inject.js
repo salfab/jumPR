@@ -39,7 +39,8 @@ function parseFileAndLine(uri) {
 
 function nodeInsertedCallback(event) {
 	document.removeEventListener('DOMNodeInserted', nodeInsertedCallback)
-	console.log("Listing all the breadcrumbs...");
+	patchBranchLozenges();
+
 	// handle links
 	const fileBreadcrumbs = document.querySelectorAll('a.file-breadcrumbs-segment-highlighted');
 	for (let index = 0; index < fileBreadcrumbs.length; index++) {
@@ -77,10 +78,32 @@ function nodeInsertedCallback(event) {
 			element.after(openInVsCodeNode);
 		}
 	}
-	console.log("...Listing over.");
+
 	document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
 
 };
+
+function patchBranchLozenges() {
+	const branchLozengeContents = document.querySelectorAll('span.ref-lozenge-content');
+	for (let index = 0; index < branchLozengeContents.length; index++) {
+		const lozengeContent = branchLozengeContents[index];
+		patchBranchLozenge(lozengeContent);
+		
+	}
+}
+
+function patchBranchLozenge(branchLozengeContent) {
+	const branchSpan = branchLozengeContent.querySelector('span');
+	if (branchSpan !== null) {
+		// if not already patched
+		const branchName = branchSpan.textContent;
+		const branchLink = document.createElement('a');
+		branchLink.href = `git-uri://checkout/${branchName}?localRepo=${basePath}`;
+		branchLink.textContent = branchName;
+		branchLozengeContent.removeChild(branchSpan);
+		branchLozengeContent.appendChild(branchLink);
+	}
+}
 
 function onLinkClick(e) {
 	e.preventDefault();
