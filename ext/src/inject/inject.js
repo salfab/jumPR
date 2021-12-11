@@ -63,20 +63,25 @@ function nodeInsertedCallback(event) {
 		const element = spanFileBreadcrumbs[index];
 		const baseUri = new URL(element.baseURI);
 
-		const existingLink = document.querySelector(`[data-linkFor='${baseUri}']`);
-		if (!existingLink) {
-			const fileAndLine = parseFileAndLine(baseUri.hash);
-			const openInVsCodeNode = document.createElement('a');
-			openInVsCodeNode.setAttribute('data-linkFor', baseUri)
-			if (!basePath || basePath == '') {
-				openInVsCodeNode.addEventListener('click', onLinkClick, false);
-			}
-			openInVsCodeNode.href = `vscode://file/${basePath}/${fileAndLine.file}:${fileAndLine.line}:0`;
-
-			openInVsCodeNode.textContent = 'open in vscode';
-			openInVsCodeNode.style = 'margin-left: 10px;';
-			element.after(openInVsCodeNode);
+		const existingLinks = document.querySelectorAll(`[data-linkFor]`);
+		if (existingLinks.length > 0) {
+			existingLinks.forEach(link => {
+				link.parentNode.removeChild(link)
+			});
 		}
+
+		const fileAndLine = parseFileAndLine(baseUri.hash);
+		const openInVsCodeNode = document.createElement('a');
+		openInVsCodeNode.setAttribute('data-linkFor', baseUri)
+		if (!basePath || basePath == '') {
+			openInVsCodeNode.addEventListener('click', onLinkClick, false);
+		}
+		openInVsCodeNode.href = `vscode://file/${basePath}/${fileAndLine.file}:${fileAndLine.line}:0`;
+
+		openInVsCodeNode.textContent = 'open in vscode';
+		openInVsCodeNode.style = 'margin-left: 10px;';
+		element.after(openInVsCodeNode);
+	
 	}
 
 	document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
