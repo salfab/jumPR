@@ -2,8 +2,8 @@
   "name": "jumPR",
   "version": "0.0.1",
   "manifest_version": 2,
-  "description": "This extension was created with the awesome extensionizr.com",
-  "homepage_url": "http://extensionizr.com",
+  "description": "A chrome extension that allows jumping directly to the code in vs code when doing a PR on bitbucket server",
+  "homepage_url": "https://github.com/salfab/jumPR",
   "icons": {
     "32": "icons/unicorn32.png",
     "64": "icons/unicorn64.png"
