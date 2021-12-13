@@ -1,3 +1,5 @@
+const regexRepo = /(?<repo>^https.+)\/pull-requests/gm;
+const regexLine = /#(?<file>[^?]+)(\?t=)*(?<line>[\d]+)*/gm
 let basePath = '';
 let repoName = getRepo(document.URL);
 const safeRepoName = repoName.replaceAll('/', '_').replaceAll(':', '_').replaceAll('.', '_');
@@ -20,40 +22,39 @@ chrome.extension.sendMessage({}, function (response) {
 			configSetBasePath.onclick = onLinkClick;
 			lastGroup.after(configSetBasePath);
 			clearInterval(readyStateCheckInterval);
-
-			// ----------------------------------------------------------
-			// This part of the script triggers when page is done loading
-			console.log("Hello. This message was sent from scripts/inject.js");
-			// ----------------------------------------------------------
-
 		}
 	}, 10);
 });
 
 function getRepo(uri) {
-	const regex = /(?<repo>^https.+)\/pull-requests/gm;
-	const matches = regex.exec(uri);
+	const matches = regexRepo.exec(uri);
 	return matches.groups.repo;
+}
+
+function parseFileAndLine(uri) {
+	regexLine.lastIndex = 0;
+	const matches = regexLine.exec(uri);
+	return { file: matches.groups.file, line: matches.groups.line || 0 };
 }
 
 function nodeInsertedCallback(event) {
 	document.removeEventListener('DOMNodeInserted', nodeInsertedCallback)
-	console.log("Listing all the breadcrumbs...");
+	patchBranchLozenges();
+
 	// handle links
 	const fileBreadcrumbs = document.querySelectorAll('a.file-breadcrumbs-segment-highlighted');
 	for (let index = 0; index < fileBreadcrumbs.length; index++) {
 		const element = fileBreadcrumbs[index];
-		const filePath = `/${element.hash.slice(1, element.hash.indexOf('?') + 1)}`;
 
 		const existingLink = document.querySelector(`[data-linkFor='${element.href}']`);
 		if (!existingLink) {
+			const fileAndLine = parseFileAndLine(element.href);
 			const openInVsCodeNode = document.createElement('a');
 			openInVsCodeNode.setAttribute('data-linkFor', element.href)
-			openInVsCodeNode.href = `vscode://file/${basePath}${filePath}`;
+			openInVsCodeNode.href = `vscode://file/${basePath}${fileAndLine.file}:${fileAndLine.line}:0`;
 			openInVsCodeNode.textContent = 'open in vscode';
 			openInVsCodeNode.style = 'margin-left: 10px;';
 			element.after(openInVsCodeNode);
-			console.log(filePath);
 		}
 
 	}
@@ -61,29 +62,53 @@ function nodeInsertedCallback(event) {
 	for (let index = 0; index < spanFileBreadcrumbs.length; index++) {
 		const element = spanFileBreadcrumbs[index];
 		const baseUri = new URL(element.baseURI);
-		const filePath = `/${baseUri.hash.slice(1)}`;
 
-		const existingLink = document.querySelector(`[data-linkFor='${baseUri}']`);
-		if (!existingLink) {
-			const openInVsCodeNode = document.createElement('a');
-			openInVsCodeNode.setAttribute('data-linkFor', baseUri)
-			if (!basePath || basePath == '') {
-				openInVsCodeNode.addEventListener('click', onLinkClick, false);
-			}
-			openInVsCodeNode.href = `vscode://file/${basePath}${filePath}`;
-
-			openInVsCodeNode.textContent = 'open in vscode';
-			openInVsCodeNode.style = 'margin-left: 10px;';
-			element.after(openInVsCodeNode);
+		const existingLinks = document.querySelectorAll(`[data-linkFor]`);
+		if (existingLinks.length > 0) {
+			existingLinks.forEach(link => {
+				link.parentNode.removeChild(link)
+			});
 		}
 
-		console.log(filePath);
+		const fileAndLine = parseFileAndLine(baseUri.hash);
+		const openInVsCodeNode = document.createElement('a');
+		openInVsCodeNode.setAttribute('data-linkFor', baseUri)
+		if (!basePath || basePath == '') {
+			openInVsCodeNode.addEventListener('click', onLinkClick, false);
+		}
+		openInVsCodeNode.href = `vscode://file/${basePath}/${fileAndLine.file}:${fileAndLine.line}:0`;
 
+		openInVsCodeNode.textContent = 'open in vscode';
+		openInVsCodeNode.style = 'margin-left: 10px;';
+		element.after(openInVsCodeNode);
+	
 	}
-	console.log("...Listing over.");
+
 	document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
 
 };
+
+function patchBranchLozenges() {
+	const branchLozengeContents = document.querySelectorAll('span.ref-lozenge-content');
+	for (let index = 0; index < branchLozengeContents.length; index++) {
+		const lozengeContent = branchLozengeContents[index];
+		patchBranchLozenge(lozengeContent);
+		
+	}
+}
+
+function patchBranchLozenge(branchLozengeContent) {
+	const branchSpan = branchLozengeContent.querySelector('span');
+	if (branchSpan !== null) {
+		// if not already patched
+		const branchName = branchSpan.textContent;
+		const branchLink = document.createElement('a');
+		branchLink.href = `git-uri://checkout/${branchName}?localRepo=${basePath}`;
+		branchLink.textContent = branchName;
+		branchLozengeContent.removeChild(branchSpan);
+		branchLozengeContent.appendChild(branchLink);
+	}
+}
 
 function onLinkClick(e) {
 	e.preventDefault();
